@@ -1,0 +1,31 @@
+[build-system]
+requires = ["maturin>=1.13,<2"]
+build-backend = "maturin"
+
+[project]
+name = "arcone-agent"
+version = "0.1.0"
+description = "Python bindings for the arcone-agent Rust toolkit"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+test = [
+    "maturin>=1.13,<2",
+    "mypy>=1.10",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.maturin]
+manifest-path = "crates/arcone-agent-py/Cargo.toml"
+python-source = "python"
+module-name = "arcone_agent._arcone_agent"
+bindings = "pyo3"

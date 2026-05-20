@@ -1,0 +1,17 @@
+[package]
+name = "arcone-agent-py"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "_arcone_agent"
+crate-type = ["cdylib"]
+
+[dependencies]
+arcone-agent = { path = "../.." }
+pyo3 = { version = "0.28.3", features = ["extension-module"] }
+pyo3-async-runtimes = { version = "0.28.0", features = ["tokio-runtime"] }
+serde = "1.0.228"
+serde_json = "1.0.145"
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "sync"] }

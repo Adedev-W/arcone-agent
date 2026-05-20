@@ -1,0 +1,34 @@
+[package]
+name = "arcone-agent"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = [".", "crates/arcone-agent-py"]
+resolver = "3"
+
+[dependencies]
+bytes = "1.11.1"
+deadpool-postgres = "0.14.1"
+http-body-util = "0.1.3"
+hyper = { version = "1.9.0", features = ["client", "server", "http1", "http2"] }
+hyper-rustls = { version = "0.27.9", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12", "webpki-roots"] }
+hyper-util = { version = "0.1.20", features = ["client-legacy", "http1", "http2", "tokio"] }
+pgvector = { version = "0.4.1", features = ["postgres"] }
+regex = "1.12.2"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+schemars = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+thiserror = "2.0.17"
+tokio = { version = "1.52.3", features = ["full"] }
+tokio-postgres = { version = "0.7.17", features = ["with-serde_json-1"] }
+tracing = { version = "0.1.44", optional = true }
+
+[features]
+default = []
+tracing = ["dep:tracing"]
+
+[dev-dependencies]
+dotenvy = "0.15.7"
+tokio-stream = "0.1.17"
