@@ -25,6 +25,10 @@ impl ThinkingConfig {
             mode: ThinkingMode::Disabled,
         }
     }
+
+    pub fn is_disabled(&self) -> bool {
+        matches!(self.mode, ThinkingMode::Disabled)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

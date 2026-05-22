@@ -56,6 +56,15 @@ knowledge flow with OpenAI embeddings, `tool_calling.py` registers a Python
 callable as a model tool, and `streaming.py` consumes streamed text deltas with
 `async for`.
 
+The Python binding reads provider keys from the process environment. Export
+`.env` first if you keep credentials there:
+
+```bash
+set -a
+. .env
+set +a
+```
+
 ```bash
 python python/examples/basic_agent.py
 python python/examples/session.py
@@ -80,7 +89,7 @@ use arcone_agent::{Agent, Result};
 async fn main() -> Result<()> {
     let mut agent = Agent::from_env()?
         .system("Use concise language")
-        .thinking_disabled()
+        .thinking_enabled()
         .max_tokens(256);
 
     let text = agent.ask_text("Explain arcone-agent.").await?;
@@ -94,10 +103,23 @@ The Python streaming example uses the binding's async iterator. Normal
 iteration finalizes the stream; `finish()` retrieves the cached response object.
 
 ```python
-stream = await agent.stream("Write a short status update.")
-async for delta in stream:
-    print(delta, end="", flush=True)
-response = await stream.finish()
+import asyncio
+
+from arcone_agent import Agent
+
+
+async def main() -> None:
+    agent = Agent.from_env(thinking=True, max_tokens=256)
+    stream = await agent.stream("Write a short status update.")
+
+    async for delta in stream:
+        print(delta, end="", flush=True)
+
+    response = await stream.finish()
+    print(f"\nfinish_reason={response.finish_reason}")
+
+
+asyncio.run(main())
 ```
 
 For durable vector search, create a shared PostgreSQL pool, migrate the

@@ -14,7 +14,7 @@ async def lookup_price(args: dict) -> dict:
 async def main() -> None:
     agent = Agent.from_env(
         system="Use tools when they help answer market questions.",
-        thinking=False,
+        thinking=True,
         max_tokens=256,
     )
     agent.add_tool(

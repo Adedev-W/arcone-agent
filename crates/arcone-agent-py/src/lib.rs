@@ -1515,7 +1515,13 @@ fn build_agent_from_env(
         };
     }
     if let Some(reasoning_effort) = reasoning_effort {
-        agent = agent.reasoning(parse_reasoning_effort(&reasoning_effort)?);
+        let effort = parse_reasoning_effort(&reasoning_effort)?;
+        if thinking == Some(false) {
+            return Err(ConfigError::new_err(
+                "reasoning_effort requires thinking=True",
+            ));
+        }
+        agent = agent.reasoning(effort);
     }
     if let Some(max_tokens) = max_tokens {
         agent = agent.max_tokens(max_tokens);

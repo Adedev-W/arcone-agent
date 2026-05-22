@@ -6,7 +6,7 @@ from arcone_agent import Agent, StreamingUnsupportedError
 async def main() -> None:
     agent = Agent.from_env(
         system="Answer clearly and keep responses concise.",
-        thinking=False,
+        thinking=True,
         max_tokens=256,
     )
 

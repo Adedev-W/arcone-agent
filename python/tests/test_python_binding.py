@@ -84,6 +84,13 @@ def test_python_tool_invalid_schema_maps_to_tool_error(monkeypatch):
         agent.add_tool("bad_schema", "Bad schema.", object(), lambda args: args)
 
 
+def test_thinking_false_rejects_reasoning_effort(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+
+    with pytest.raises(ConfigError, match="reasoning_effort requires thinking=True"):
+        Agent.from_env(thinking=False, reasoning_effort="high")
+
+
 @pytest.mark.asyncio
 async def test_postgres_pool_missing_database_url_maps_to_config_error(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
@@ -131,6 +138,8 @@ async def test_stream_text_yields_deltas_and_finish(monkeypatch):
         assert response.usage["prompt_tokens"] == 1
         assert response.usage["total_tokens"] == 2
         assert '"stream":true' in requests[0]
+        assert '"thinking":{"type":"disabled"}' in requests[0]
+        assert '"reasoning_effort"' not in requests[0]
     finally:
         server.close()
         await server.wait_closed()
@@ -194,7 +203,7 @@ async def test_live_agent_ask_text_when_configured():
     if not os.environ.get("DEEPSEEK_API_KEY"):
         pytest.skip("DEEPSEEK_API_KEY is not configured")
 
-    agent = Agent.from_env(system="Answer in one short sentence.", thinking=False, max_tokens=64)
+    agent = Agent.from_env(system="Answer in one short sentence.", thinking=True, max_tokens=64)
     text = await agent.ask_text("What is arcone-agent?")
     assert isinstance(text, str)
     assert text

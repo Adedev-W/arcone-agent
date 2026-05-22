@@ -65,6 +65,30 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/arcone
 `DATABASE_URL` is required for `PostgresSessionStore.from_env` and
 `PostgresPool.from_env`.
 
+The Python binding reads the process environment through the Rust core. It does
+not load `.env` files automatically. If you keep credentials in `.env`, export
+them before running Python scripts:
+
+```bash
+set -a
+. .env
+set +a
+```
+
+As an application-level alternative, install `python-dotenv` and call
+`load_dotenv()` before `Agent.from_env()` or any other `from_env` constructor:
+
+```python
+from dotenv import load_dotenv
+
+load_dotenv()
+```
+
+DeepSeek requests default to thinking mode. Leave `thinking` unset, or pass
+`thinking=True`, for normal reasoning requests. Use `thinking=False` only for
+explicit non-thinking calls; in that mode the binding omits
+`reasoning_effort`, and the response will not include `reasoning_content`.
+
 ## Basic Agent
 
 ```python
@@ -76,7 +100,7 @@ from arcone_agent import Agent
 async def main() -> None:
     agent = Agent.from_env(
         system="Answer clearly and keep responses concise.",
-        thinking=False,
+        thinking=True,
         max_tokens=256,
     )
 
@@ -91,10 +115,20 @@ Use `ask_text` when you only need the assistant text. Use `ask` when you need
 finish reason, usage, reasoning text, or conversation history.
 
 ```python
-response = await agent.ask("Explain session memory.")
-print(response.content)
-print(response.finish_reason)
-print(response.usage)
+import asyncio
+
+from arcone_agent import Agent
+
+
+async def main() -> None:
+    agent = Agent.from_env(thinking=True, max_tokens=256)
+    response = await agent.ask("Explain session memory.")
+    print(response.content)
+    print(response.finish_reason)
+    print(response.usage)
+
+
+asyncio.run(main())
 ```
 
 Best practice: `Agent` is stateful and stores history. Reuse one agent for a
@@ -107,6 +141,11 @@ Register Python callables as model tools with a JSON schema. Sync and async
 callables are supported.
 
 ```python
+import asyncio
+
+from arcone_agent import Agent
+
+
 async def lookup_price(args: dict) -> dict:
     return {
         "symbol": args["symbol"].upper(),
@@ -115,16 +154,27 @@ async def lookup_price(args: dict) -> dict:
     }
 
 
-agent.add_tool(
-    name="lookup_price",
-    description="Return a demo market quote for a ticker symbol.",
-    schema={
-        "type": "object",
-        "properties": {"symbol": {"type": "string"}},
-        "required": ["symbol"],
-    },
-    handler=lookup_price,
-)
+async def main() -> None:
+    agent = Agent.from_env(
+        system="Use tools when they help answer market questions.",
+        thinking=True,
+        max_tokens=256,
+    )
+    agent.add_tool(
+        name="lookup_price",
+        description="Return a demo market quote for a ticker symbol.",
+        schema={
+            "type": "object",
+            "properties": {"symbol": {"type": "string"}},
+            "required": ["symbol"],
+        },
+        handler=lookup_price,
+    )
+
+    print(await agent.ask_text("What is the demo quote for ACME?"))
+
+
+asyncio.run(main())
 ```
 
 Tool schemas and return values must be JSON serializable. Exceptions raised by
@@ -135,23 +185,45 @@ the Python callable are reported as `ToolError`.
 Use `stream_text` when you want an async iterator directly:
 
 ```python
-agent = Agent.from_env(thinking=False, max_tokens=256)
+import asyncio
 
-stream = agent.stream_text("Write a short status update.")
-async for delta in stream:
-    print(delta, end="", flush=True)
+from arcone_agent import Agent
 
-response = await stream.finish()
-print(response.finish_reason)
+
+async def main() -> None:
+    agent = Agent.from_env(thinking=True, max_tokens=256)
+
+    stream = agent.stream_text("Write a short status update.")
+    async for delta in stream:
+        print(delta, end="", flush=True)
+
+    response = await stream.finish()
+    print(f"\nfinish_reason={response.finish_reason}")
+
+
+asyncio.run(main())
 ```
 
 Use `stream` when you want the stream-open step to be awaited before iteration:
 
 ```python
-stream = await agent.stream("Write a short status update.")
-async for delta in stream:
-    print(delta, end="", flush=True)
-response = await stream.finish()
+import asyncio
+
+from arcone_agent import Agent
+
+
+async def main() -> None:
+    agent = Agent.from_env(thinking=True, max_tokens=256)
+    stream = await agent.stream("Write a short status update.")
+
+    async for delta in stream:
+        print(delta, end="", flush=True)
+
+    response = await stream.finish()
+    print(f"\nfinish_reason={response.finish_reason}")
+
+
+asyncio.run(main())
 ```
 
 Normal iteration automatically finalizes the stream when the provider sends
@@ -168,23 +240,49 @@ calls, the binding raises `StreamingUnsupportedError`, which is a subclass of
 In-memory session:
 
 ```python
+import asyncio
+
 from arcone_agent import Agent, InMemorySessionStore
 
-store = InMemorySessionStore()
-agent = Agent.from_env(session_id="demo-user", session_store=store)
+
+async def main() -> None:
+    store = InMemorySessionStore()
+    agent = Agent.from_env(
+        session_id="demo-user",
+        session_store=store,
+        thinking=True,
+        max_tokens=128,
+    )
+    print(await agent.ask_text("Remember that this session is in memory."))
+
+
+asyncio.run(main())
 ```
 
 PostgreSQL session:
 
 ```python
+import asyncio
+
 from arcone_agent import Agent, PostgresSessionStore
 
-store = await PostgresSessionStore.from_env(
-    max_pool_size=16,
-    connect_timeout_seconds=5.0,
-)
 
-agent = Agent.from_env(session_id="demo-user", session_store=store)
+async def main() -> None:
+    store = await PostgresSessionStore.from_env(
+        max_pool_size=16,
+        connect_timeout_seconds=5.0,
+    )
+
+    agent = Agent.from_env(
+        session_id="demo-user",
+        session_store=store,
+        thinking=True,
+        max_tokens=128,
+    )
+    print(await agent.ask_text("Persist this message in PostgreSQL."))
+
+
+asyncio.run(main())
 ```
 
 If `session_store` is provided, `session_id` is required. If only `session_id`
@@ -225,7 +323,7 @@ async def main() -> None:
 
     base_agent = Agent.from_env(
         system="Answer only from provided context.",
-        thinking=False,
+        thinking=True,
         max_tokens=256,
     )
     agent = KnowledgeAgent.from_agent(base_agent, retriever, top_k=4)
@@ -248,6 +346,8 @@ enough to stay inside model context. Start with `max_chars=1200` and
 Use a shared pool for durable document/chunk storage and vector retrieval:
 
 ```python
+import asyncio
+
 from arcone_agent import (
     Document,
     OpenAiEmbedder,
@@ -256,28 +356,33 @@ from arcone_agent import (
     PostgresPool,
 )
 
-pool = await PostgresPool.from_env(statement_timeout_seconds=10.0)
 
-knowledge = PostgresKnowledgeBase(pool, max_chars=1200, overlap_chars=120)
-await knowledge.migrate()
-chunks = await knowledge.add_document(
-    Document.text(
-        "pgvector-overview",
-        "pgvector stores embeddings in PostgreSQL.",
-        title="pgvector Overview",
-        source="local",
+async def main() -> None:
+    pool = await PostgresPool.from_env(statement_timeout_seconds=10.0)
+
+    knowledge = PostgresKnowledgeBase(pool, max_chars=1200, overlap_chars=120)
+    await knowledge.migrate()
+    chunks = await knowledge.add_document(
+        Document.text(
+            "pgvector-overview",
+            "pgvector stores embeddings in PostgreSQL.",
+            title="pgvector Overview",
+            source="local",
+        )
     )
-)
 
-retriever = PgVectorRetriever(
-    pool,
-    OpenAiEmbedder.from_env(),
-    embedding_dimension=1536,
-    metric="cosine",
-    index_mode="auto",
-)
-await retriever.migrate()
-await retriever.index(chunks)
+    retriever = PgVectorRetriever(
+        pool,
+        OpenAiEmbedder.from_env(),
+        embedding_dimension=1536,
+        metric="cosine",
+        index_mode="auto",
+    )
+    await retriever.migrate()
+    await retriever.index(chunks)
+
+
+asyncio.run(main())
 ```
 
 `metric` accepts `"cosine"` or `"l2"`. `index_mode` accepts `"auto"`, `"hnsw"`,

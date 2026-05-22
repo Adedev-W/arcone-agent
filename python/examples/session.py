@@ -8,7 +8,7 @@ async def main() -> None:
     first = Agent.from_env(
         session_id="python-session-demo",
         session_store=store,
-        thinking=False,
+        thinking=True,
         max_tokens=128,
     )
 
@@ -17,7 +17,7 @@ async def main() -> None:
     second = Agent.from_env(
         session_id="python-session-demo",
         session_store=store,
-        thinking=False,
+        thinking=True,
         max_tokens=128,
     )
     print(await second.ask_text("What project codename did I mention?"))

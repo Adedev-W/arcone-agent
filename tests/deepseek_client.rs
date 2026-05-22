@@ -155,7 +155,43 @@ async fn agent_ask_text_returns_assistant_content() {
     let requests = server.await.expect("server task");
     let request = json_request_body(&requests[0]);
     assert_eq!(request["messages"][0]["content"], "Answer briefly.");
+    assert_eq!(request["thinking"]["type"], "disabled");
+    assert!(request.get("reasoning_effort").is_none());
     assert_eq!(request["max_tokens"], 64);
+}
+
+#[tokio::test]
+async fn thinking_disabled_request_does_not_receive_default_reasoning_effort() {
+    let body = json!({
+        "id": "chat-default-thinking-off",
+        "choices": [{
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {"role": "assistant", "content": "plain answer"},
+            "logprobs": null
+        }],
+        "created": 1,
+        "model": "deepseek-v4-flash",
+        "object": "chat.completion",
+        "usage": usage()
+    })
+    .to_string();
+    let (base_url, server) = spawn_http_sequence(vec![json_response(&body)]).await;
+    let client = DeepSeekClient::new(
+        DeepSeekConfig::new("test-key")
+            .with_base_url(base_url)
+            .with_timeout(Duration::from_secs(5)),
+    )
+    .expect("client");
+    let mut agent = Agent::new(client).thinking_disabled();
+
+    let text = agent.ask_text("Short answer").await.expect("text response");
+
+    assert_eq!(text, "plain answer");
+    let requests = server.await.expect("server task");
+    let request = json_request_body(&requests[0]);
+    assert_eq!(request["thinking"]["type"], "disabled");
+    assert!(request.get("reasoning_effort").is_none());
 }
 
 #[tokio::test]
@@ -513,7 +549,7 @@ async fn agent_config_builds_profile_request() {
     assert_eq!(request["messages"][1]["role"], "user");
     assert_eq!(request["messages"][1]["content"], "Return JSON");
     assert_eq!(request["thinking"]["type"], "disabled");
-    assert_eq!(request["reasoning_effort"], "high");
+    assert!(request.get("reasoning_effort").is_none());
     assert_eq!(request["max_tokens"], 123);
     assert_eq!(request["response_format"]["type"], "json_object");
 }

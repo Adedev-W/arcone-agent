@@ -26,7 +26,7 @@ use arcone_agent::{Agent, Result};
 async fn main() -> Result<()> {
     let mut agent = Agent::from_env()?
         .system("Answer clearly and keep responses concise.")
-        .thinking_disabled()
+        .thinking_enabled()
         .max_tokens(256);
 
     let answer = agent.ask_text("What can arcone-agent do?").await?;
@@ -57,6 +57,20 @@ python -m pip install "maturin>=1.13,<2"
 maturin develop
 ```
 
+Python scripts read provider keys from the process environment; the binding does
+not load `.env` automatically. If your credentials live in `.env`, export them
+before running examples:
+
+```bash
+set -a
+. .env
+set +a
+```
+
+DeepSeek requests default to thinking mode. Leave `thinking` unset, or pass
+`thinking=True`, for normal reasoning requests. Use `thinking=False` only for
+explicit non-thinking calls; in that mode the binding omits `reasoning_effort`.
+
 ```python
 import asyncio
 
@@ -66,7 +80,7 @@ from arcone_agent import Agent
 async def main() -> None:
     agent = Agent.from_env(
         system="Answer clearly and keep responses concise.",
-        thinking=False,
+        thinking=True,
         max_tokens=256,
     )
 

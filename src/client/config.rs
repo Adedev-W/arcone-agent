@@ -91,7 +91,13 @@ impl DeepSeekConfig {
             request.thinking = self.default_thinking.clone();
         }
 
-        if request.reasoning_effort.is_none() {
+        if request
+            .thinking
+            .as_ref()
+            .is_some_and(ThinkingConfig::is_disabled)
+        {
+            request.reasoning_effort = None;
+        } else if request.reasoning_effort.is_none() {
             request.reasoning_effort = self.default_reasoning_effort.clone();
         }
     }
@@ -107,5 +113,36 @@ impl fmt::Debug for DeepSeekConfig {
             .field("default_thinking", &self.default_thinking)
             .field("default_reasoning_effort", &self.default_reasoning_effort)
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ChatMessage, ReasoningEffort};
+
+    #[test]
+    fn apply_defaults_adds_enabled_thinking_and_default_reasoning() {
+        let config = DeepSeekConfig::new("test-key");
+        let mut request =
+            ChatRequest::new(DeepSeekModel::V4Flash, vec![ChatMessage::user("hello")]);
+
+        config.apply_defaults(&mut request);
+
+        assert_eq!(request.thinking, Some(ThinkingConfig::enabled()));
+        assert_eq!(request.reasoning_effort, Some(ReasoningEffort::High));
+    }
+
+    #[test]
+    fn apply_defaults_clears_reasoning_when_thinking_is_disabled() {
+        let config = DeepSeekConfig::new("test-key");
+        let mut request = ChatRequest::new(DeepSeekModel::V4Flash, vec![ChatMessage::user("hi")])
+            .with_thinking(ThinkingConfig::disabled())
+            .with_reasoning_effort(ReasoningEffort::High);
+
+        config.apply_defaults(&mut request);
+
+        assert_eq!(request.thinking, Some(ThinkingConfig::disabled()));
+        assert_eq!(request.reasoning_effort, None);
     }
 }

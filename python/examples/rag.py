@@ -26,7 +26,7 @@ async def main() -> None:
 
     base_agent = Agent.from_env(
         system="Answer only from the retrieved context.",
-        thinking=False,
+        thinking=True,
         max_tokens=256,
     )
     agent = KnowledgeAgent.from_agent(base_agent, retriever, top_k=4)
